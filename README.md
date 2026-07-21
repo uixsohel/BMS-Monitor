@@ -16,7 +16,7 @@ A lightweight macOS menu bar application for monitoring Battery Management Syste
 ## Screenshots
 
 ### Dashboard
-![Dashboard](Screenshots/dashboard.png)
+![Dashboard](Screenshots/Dashboard.png)
 
 ## Setup
 
