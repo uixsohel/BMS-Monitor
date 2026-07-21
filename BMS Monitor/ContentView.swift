@@ -253,7 +253,7 @@ struct ContentView: View {
                 settings.plistConfigured &&
                 settings.particleEnabled &&
                 popoverVisibility.isVisible &&
-                (viewModel.status.lowercased().contains("charginga") ||
+                (viewModel.status.lowercased().contains("charging") ||
                  viewModel.status.lowercased().contains("discharging")) ? 1 : 0
             )
 
