@@ -259,7 +259,7 @@ struct ContentView: View {
 
             VStack(alignment: .leading, spacing: 18) {
                 HStack(alignment: .center, spacing: 12) {
-                    Text("Battery Status 2")
+                    Text("Battery Status")
                         .font(.system(size: 18, weight: .semibold))
                         .foregroundColor(.white)
 
