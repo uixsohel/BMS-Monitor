@@ -9,7 +9,7 @@ A lightweight native macOS menu bar application for monitoring Battery Managemen
 
 ## ✨ Features
 
-- Native SwiftUI menu-bar application
+- Native SwiftUI menu bar application
 - Real-time battery monitoring
 - Firebase Realtime Database integration
 - Configurable `GoogleService-Info.plist`
