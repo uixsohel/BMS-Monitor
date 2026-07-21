@@ -1,0 +1,17 @@
+# macOS
+.DS_Store
+
+# Xcode
+DerivedData/
+build/
+*.xcuserstate
+xcuserdata/
+
+# Firebase
+GoogleService-Info.plist
+
+# Swift Package Manager
+.build/
+
+# Archives
+*.xcarchive
