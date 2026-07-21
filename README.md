@@ -1,16 +1,15 @@
 # BMS Monitor
 
+A lightweight native macOS menu bar application for monitoring Battery Management System (BMS) data in real time using Firebase Realtime Database.
 <p align="center">
   <img src="Screenshots/Dashboard.png" width="900">
 </p>
-
-A lightweight native macOS menu bar application for monitoring Battery Management System (BMS) data in real time using Firebase Realtime Database.
 
 ---
 
 ## ✨ Features
 
-- Native SwiftUI menu bar application
+- Native SwiftUI menu-bar application
 - Real-time battery monitoring
 - Firebase Realtime Database integration
 - Configurable `GoogleService-Info.plist`
@@ -21,27 +20,6 @@ A lightweight native macOS menu bar application for monitoring Battery Managemen
 
 ---
 
-## 📷 Screenshots
-
-### Dashboard
-
-<p align="center">
-  <img src="Screenshots/Dashboard.png" width="900">
-</p>
-
-### Settings
-
-<p align="center">
-  <img src="Screenshots/Settings.png" width="900">
-</p>
-
-### Firebase Structure
-
-<p align="center">
-  <img src="Screenshots/FirebaseStructure.png" width="900">
-</p>
-
----
 
 ## 🚀 Installation
 
