@@ -1,6 +1,5 @@
 # BMS Monitor
 
-### Dashboard
 ![Dashboard](Screenshots/Dashboard.png)
 
 A lightweight macOS menu bar application for monitoring Battery Management System (BMS) data in real time using Firebase Realtime Database.
