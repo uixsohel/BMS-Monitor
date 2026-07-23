@@ -24,6 +24,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
 
     private var cancellables = Set<AnyCancellable>()
 
+    // Re-renders the menu bar title whenever Dark/Light Mode changes (or
+    // macOS auto-switches appearance based on a dynamic wallpaper) — needed
+    // because a previously-set attributedTitle doesn't automatically repaint
+    // itself just because the system appearance flipped underneath it.
+    private var appearanceObservation: NSKeyValueObservation?
+
     func applicationDidFinishLaunching(_ notification: Notification) {
 
         NSApp.setActivationPolicy(.accessory)
@@ -64,6 +70,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
             self?.popover.performClose(nil)
             self?.openPreferences()
         }
+
+        appearanceObservation = NSApp.observe(\.effectiveAppearance, options: [.new]) { [weak self] _, _ in
+            self?.updateButton(soc: BatteryViewModel.shared.soc, status: BatteryViewModel.shared.status)
+        }
     }
 
     private func updateButton(soc: Int, status: String) {
@@ -100,7 +110,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
             button.image = image
         }
 
-        button.title = " \(soc)%"
+        // Plain `button.title` (a String) doesn't reliably track the menu
+        // bar's own light/dark rendering — it can stay black even after
+        // the menu bar itself turns dark (Dark Mode, or macOS auto-switching
+        // appearance based on a dynamic wallpaper), making the text
+        // invisible against a now-dark background. Rebuilding the
+        // attributedTitle here (rather than reusing one) also makes sure it
+        // actually repaints when combined with the effectiveAppearance
+        // observer set up in applicationDidFinishLaunching.
+        //
+        // NSColor.labelColor would adapt correctly too, but it's not pure
+        // black in Light mode — Apple designs it with slightly reduced
+        // opacity (~85%) for use over vibrancy/blur backgrounds, which
+        // looked a shade lighter than the original plain-black title. This
+        // custom dynamic color resolves to fully solid black in Light mode
+        // and fully solid white in Dark mode instead.
+        let dynamicTextColor = NSColor(name: nil) { appearance in
+            appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+                ? NSColor.white
+                : NSColor.black
+        }
+
+        button.attributedTitle = NSAttributedString(
+            string: " \(soc)%",
+            attributes: [
+                .foregroundColor: dynamicTextColor,
+                .font: NSFont.menuBarFont(ofSize: 0)
+            ]
+        )
     }
 
     @objc
