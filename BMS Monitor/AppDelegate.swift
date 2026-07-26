@@ -247,7 +247,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     private func showAbout() {
         let alert = NSAlert()
         alert.messageText = "BMS Monitor"
-        alert.informativeText = "Battery Management System Monitor\nVersion 1.0"
+        alert.informativeText = """
+        Version 1.0.2-uixsohel
+
+        A lightweight menu bar utility for real-time monitoring of your JBD BMS — live state of charge, voltage, current, power draw, temperature, and backup time, synced through Firebase.
+
+        Developed by Sohel R.
+        © 2026 All rights reserved.
+        """
         alert.alertStyle = .informational
         alert.addButton(withTitle: "OK")
         alert.runModal()
