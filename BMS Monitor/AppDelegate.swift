@@ -30,9 +30,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     // itself just because the system appearance flipped underneath it.
     private var appearanceObservation: NSKeyValueObservation?
 
+    // Held for the app's entire lifetime to opt this background menu-bar
+    // app out of macOS App Nap. Without this, once the screen goes idle/off
+    // (which, on a Mac Mini, usually happens WITHOUT the system actually
+    // going to sleep), macOS throttles this hidden app's timers and network
+    // activity — sometimes by minutes. That was making our own
+    // checkOfflineStatus() Timer itself fire late, and by the time it
+    // finally ran, it saw a stale-looking lastUpdate gap and wrongly
+    // concluded the BMS connection was lost, even though Firebase was
+    // delivering data on time the whole while. This does NOT prevent the
+    // Mac from idle-sleeping normally — it only stops App Nap's in-the-
+    // background throttling while the system is still awake.
+    private var appNapActivity: NSObjectProtocol?
+
     func applicationDidFinishLaunching(_ notification: Notification) {
 
         NSApp.setActivationPolicy(.accessory)
+
+        appNapActivity = ProcessInfo.processInfo.beginActivity(
+            options: .userInitiatedAllowingIdleSystemSleep,
+            reason: "Maintaining a persistent Firebase realtime connection for BMS monitoring"
+        )
 
         if FirebaseApp.app() != nil {
             BatteryViewModel.shared.startListening()
@@ -242,13 +260,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
 
     // MARK: - NSWindowDelegate
     func windowWillClose(_ notification: Notification) {
-        PopoverVisibility.shared.isVisible = false
+        // This delegate is shared with the Settings window (see
+        // openPreferences()), so only clear PopoverVisibility if it's
+        // actually the popover's own window closing — otherwise closing
+        // Settings could incorrectly stop the popover's particle animation
+        // even while the popover itself is still open.
         if let window = notification.object as? NSWindow, window == settingsWindow {
             settingsWindow = nil
+        } else {
+            PopoverVisibility.shared.isVisible = false
         }
     }
 
     // MARK: - NSPopoverDelegate
+    // popoverWillShow (fires as the popover begins showing) rather than
+    // popoverDidShow (fires after the show animation finishes, which just
+    // added a visible delay before content appeared without actually fixing
+    // the missing-particles issue — that bug was in ParticleBackground's
+    // .onAppear-based initialization, not in show-timing; see its init()).
     func popoverWillShow(_ notification: Notification) {
         PopoverVisibility.shared.isVisible = true
     }

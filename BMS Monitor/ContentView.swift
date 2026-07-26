@@ -7,7 +7,7 @@ import UniformTypeIdentifiers
 import ServiceManagement
 
 // MARK: - ViewModel
-class BatteryViewModel: ObservableObject {
+class BatteryViewModel: NSObject, ObservableObject {
 
     static let shared = BatteryViewModel()
 
@@ -28,8 +28,11 @@ class BatteryViewModel: ObservableObject {
     private var previousStatus = ""
     private var offlineNotified = false
     private var fullBatteryNotified = false
+    private var wakeGracePeriodWorkItem: DispatchWorkItem?
 
-    private init() {
+    private override init() {
+        super.init()
+
         UNUserNotificationCenter.current().requestAuthorization(
             options: [.alert, .sound]
         ) { _, error in
@@ -37,6 +40,70 @@ class BatteryViewModel: ObservableObject {
                 print(error.localizedDescription)
             }
         }
+
+        // Timers don't fire while the Mac is asleep, so checkOfflineStatus()
+        // never runs *during* sleep — but naively resuming the check
+        // immediately on wake was still wrong: macOS Power Nap briefly wakes
+        // the network every 15-30 minutes while otherwise fully asleep, and
+        // Firebase often doesn't finish reconnecting within that short,
+        // constrained window — falsely flagging "Offline" on every single
+        // Power Nap cycle even though the connection was never actually
+        // down. See systemDidWake() below for the grace-period fix.
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self,
+            selector: #selector(systemWillSleep),
+            name: NSWorkspace.willSleepNotification,
+            object: nil
+        )
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self,
+            selector: #selector(systemDidWake),
+            name: NSWorkspace.didWakeNotification,
+            object: nil
+        )
+    }
+
+    @objc private func systemWillSleep() {
+        offlineCheckTimer?.invalidate()
+        offlineCheckTimer = nil
+
+        // If we were still waiting out the post-wake grace period from a
+        // previous (Power Nap) wake, cancel it — going back to sleep means
+        // that wake was too brief to matter, and it should never reach the
+        // point of running an offline check at all.
+        wakeGracePeriodWorkItem?.cancel()
+        wakeGracePeriodWorkItem = nil
+    }
+
+    @objc private func systemDidWake() {
+        guard isListening else { return }
+
+        lastUpdate = Date()
+        isConnected = true
+        offlineNotified = false
+
+        // Power Nap gives the Mac only a brief, network-constrained
+        // dark-wake window every 15-30 minutes — Firebase often can't fully
+        // reconnect within the normal offline timeout during that short
+        // window, which was causing a false "Offline" notification on every
+        // single Power Nap cycle even though the connection was never
+        // actually down. Waiting 60s before resuming checks means: if this
+        // was just a brief Power Nap blip, the Mac goes back to sleep
+        // (cancelling this work item in systemWillSleep()) long before the
+        // check ever runs. Only a real, full wake session (screen actually
+        // turned on) stays awake long enough for this to fire — by which
+        // point Firebase has had plenty of time to reconnect properly.
+        wakeGracePeriodWorkItem?.cancel()
+
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let self = self, self.isListening else { return }
+            self.lastUpdate = Date()
+            self.offlineCheckTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+                self?.checkOfflineStatus()
+            }
+        }
+        wakeGracePeriodWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 60, execute: workItem)
     }
 
     func startListening() {
@@ -403,7 +470,22 @@ struct ParticleBackground: View {
     let count: Int
     let isVisible: Bool
 
-    @State private var particles: [Particle] = []
+    // Populated directly in init() below — NOT via .onAppear. .onAppear on a
+    // conditionally-mounted view (this one only exists in the tree while its
+    // parent's `if` is true) isn't guaranteed to fire reliably every single
+    // time in an NSHostingController-hosted popover; that's exactly why
+    // particles would sometimes just never appear on open, only "fixed" by
+    // closing and reopening (a lucky retry). Setting the initial value here
+    // instead is synchronous and doesn't depend on any lifecycle callback.
+    @State private var particles: [Particle]
+
+    init(status: String, fps: Int, count: Int, isVisible: Bool) {
+        self.status = status
+        self.fps = fps
+        self.count = count
+        self.isVisible = isVisible
+        _particles = State(initialValue: (0..<count).map { _ in Particle.random() })
+    }
 
     var isCharging: Bool {
         let lower = status.lowercased()
@@ -461,9 +543,6 @@ struct ParticleBackground: View {
                 .blur(radius: 0.4)
                 .drawingGroup()
             }
-        }
-        .onAppear {
-            particles = (0..<count).map { _ in Particle.random() }
         }
         .onChange(of: count) { _, newCount in
             particles = (0..<newCount).map { _ in Particle.random() }

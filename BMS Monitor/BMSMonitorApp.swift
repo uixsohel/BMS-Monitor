@@ -74,7 +74,7 @@ final class SettingsManager: ObservableObject {
     private init() {
         let defaults: [String: Any] = [
             "databasePath": "bms/live",
-            "offlineTimeout": 30,
+            "offlineTimeout": 60,
             "particleEnabled": true,
             "particleFPS": 60,
             "particleCount": 100,
